@@ -1,0 +1,416 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>Keep it secret, keep it save!</title>
+    <link rel="shortcut icon" href="./favicon.ico">
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1">
+
+    <script type="text/javascript" src="js/jquery-3.3.1.min.js"></script>
+    <script type="text/javascript" src="js/jquery.session.js"></script>
+
+    <script type="text/javascript" src="semantic/semantic.min.js"></script>
+
+    <script type="text/javascript" src="js/cryptojslib/core.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/enc-base64.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/md5.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/evpkdf.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/cipher-core.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/aes.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/sha1.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/sha256-min.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/hmac.js"></script>
+    <script type="text/javascript" src="js/cryptojslib/pbkdf2.js"></script>
+
+    <script type="text/javascript" src="js/js.storage.min.js"></script>
+    <script type="text/javascript" src="js/clipboard.min.js"></script>
+    <script type="text/javascript" src="js/jquery.simulate.js"></script>
+    <script type="text/javascript" src="js/mustache.min.js"></script>
+
+    <script type="text/javascript" src="js/config.js"></script>
+    <script type="text/javascript" src="js/backend.js"></script>
+    <script type="text/javascript" src="js/mysecrets.js"></script>
+
+    <!-- TEMPLATES, MODALS, etc. -->
+    <script id="modalCredentials" type="x-tmpl-mustache">
+      <div class="ui modal">
+        <i class="close icon"></i>
+        <div class="header">
+          Credentials
+        </div>
+        <div class="content">
+          <form class="ui form">
+            <div class="field">
+              <label>Name und Passwort</label>
+              <div class="two fields">
+                <div class="field">
+                  <input type="text" id="auth-username" placeholder="Name" value="{{username}}">
+                </div>
+                <div class="field">
+                  <div class="ui icon input">
+                    <input type="password" id="auth-password" placeholder="Passwort" value="{{password}}">
+                    <i class="eye link icon togglePasswdVisible"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Passphrase</label>
+              <div class="ui icon input">
+                <input type="password" id="crypt-passphrase" placeholder="Passphrase" value="{{passphrase}}">
+                <i class="eye link icon togglePasswdVisible"></i>
+              </div>
+            </div>
+            <div class="field">
+              <div class="ui checkbox">
+                <input type="checkbox" id="localStorage" name="localStorage" {{checkedLocalStorage}}>
+                <label>LocalStorage</label>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="actions">
+          <div class="ui approve button">OK</div>
+          <div class="ui cancel button">Abbruch</div>
+        </div>
+      </div>
+    </script>
+
+    <script id="accordionTemplateHead" type="x-tmpl-mustache">
+      <div class="title">
+        <i class="dropdown icon"></i>
+        {{category}}
+      </div>
+    </script>
+
+    <script id="accordionTemplateContent" type="x-tmpl-mustache">
+      <div class="content">
+        <div class="transition hidden accordion categorySecrets"></div>
+      </div>
+    </script>
+
+    <script id="accordionTemplateSecret" type="x-tmpl-mustache">
+      <div class="title">
+        <div class="ui three grid">
+            <div class="column" style="flex: 1;">
+              <i class="dropdown icon"></i>
+              {{name}}
+            </div>
+            <div class="column large screen only desktop only right aligned" style="flex: 0 0 200px;">
+              {{tagList}}
+            </div>
+            <div class="column right aligned" style="flex: 0 0 75px;">
+              <i data-secret-id="{{id}}" class="search icon btnShowDetails"></i>
+              <i data-secret-id="{{id}}" class="delete icon btnDeleteSecret"></i>
+            </div>
+        </div>
+      </div>
+      <div class="content">
+        <form class="ui form">
+          <div class="field">
+            <div class="two fields">
+              <div class="field">
+                <label>Login</label>
+                <input type="text" readonly value="{{login}}"/>
+              </div>
+              <div class="field">
+                <label>Passwort</label>
+                <div class="ui action input">
+                  <input type="password" id="passwd-{{id}}" class="passwd" readonly value="{{password}}">
+                  <div class="ui icon button togglePasswdVisible">
+                    <i class="eye link icon"></i>
+                  </div>
+                  <div class="ui icon button clipPasswd" data-clipboard-target="#passwd-{{id}}">
+                    <i class="clipboard link icon"></i>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </script>
+
+    <script id="modalSecret" type="x-tmpl-mustache">
+      <div class="ui modal">
+        <i class="close icon"></i>
+        <div class="header">
+          Secret
+          <div class="ui right floated mini toggle checkbox">
+            <input type="checkbox" id="pwSymbols" name="pwSymbols" />
+            <label class="ui mini">&nbsp;</label>
+          </div>
+          <div class="ui right floated mini input">
+            <label class="ui mini right pointing label">Password Einstellungen</label>
+            <input type="text" id="pwLength" name="pwLength" maxlength="2" minlength="2" size="2" class="ui mini input" style="height: 20px; font-size: 10px;" />
+          </div>
+        </div>
+        <div class="content">
+          <form class="ui form">
+            <input type="hidden" id="secret-id" value="{{id}}">
+            <div class="two fields">
+              <div class="field">
+                <label>Kategorie Vorauswahl</label>
+                <select id="secret-category"></select>
+              </div>
+              <div class="field">
+                <label>Kategorie Neu</label>
+                <input type="text" id="secret-category-txt" placeholder="Kategorie">
+              </div>
+            </div>
+            <div class="field">
+              <label>Name und Url</label>
+              <div class="two fields">
+                <div class="field">
+                  <input type="text" id="secret-name" placeholder="Name" value="{{name}}">
+                </div>
+                <div class="field">
+                  <input type="text" id="secret-url" placeholder="Url" value="{{url}}">
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Credentials</label>
+              <div class="two fields">
+                <div class="field">
+                  <input type="text" id="secret-login" value="{{login}}" placeholder="Login">
+                </div>
+                <div class="field">
+                  <div class="ui action input">
+                    <input type="password" id="secret-password" class="passwd" value="{{password}}" placeholder="Passwort">
+                    <div class="ui icon button togglePasswdVisible">
+                      <i class="eye link icon"></i>
+                    </div>
+                    <div class="ui icon button generatePassword">
+                      <i class="calculator link icon"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Tags</label>
+              <input type="text" id="secret-tags" placeholder="Tags" value="{{tagList}}">
+            </div>
+          </form>
+        </div>
+        <div class="actions">
+          <div class="ui approve button">OK</div>
+          <div class="ui cancel button">Abbruch</div>
+        </div>
+      </div>
+    </script>
+  
+    <script id="searchResultTemplate" type="x-tmpl-mustache">
+      <div class="ui card">
+        <div class="content">
+          <div class="header">
+            {{name}}
+            <span class="right floated">
+              {{tagList}}
+            </span>
+          </div>
+        </div>
+        <div class="content">
+          <form class="ui form">
+            <div class="field">
+              <input type="text" readonly value="{{login}}" placeholder="Login"/>
+            </div>
+            <div class="field">
+              <div class="ui action input">
+                <input type="password" id="search-passwd-{{id}}" class="passwd" readonly value="{{password}}">
+                <div class="ui icon button togglePasswdVisible">
+                  <i class="eye link icon"></i>
+                </div>
+                <div class="ui icon button clipPasswdSearch" data-clipboard-target="#search-passwd-{{id}}">
+                  <i class="copy link icon"></i>
+                </div>
+              </div>
+            </div>
+            <div class="field">
+              <input type="text" readonly value="{{url}}" placeholder="Url"/>
+            </div>
+          </form>
+        </div>
+      </div>
+    </script>
+
+    <script id="modalDelete" type="x-tmpl-mustache">
+      <div class="ui modal">
+        <i class="close icon"></i>
+        <div class="header">
+          Delete?
+        </div>
+        <div class="content">
+          Willst Du wirklich löschen?
+        </div>
+        <div class="actions">
+          <div class="ui approve button">OK</div>
+          <div class="ui cancel button">Abbruch</div>
+        </div>
+      </div>
+    </script>
+
+    <script id="modalImport" type="x-tmpl-mustache">
+      <div class="ui modal">
+        <i class="close icon"></i>
+        <div class="header">
+          Import
+        </div>
+        <div class="content">
+          <form class="ui form">
+            <div class="field">
+              <label>Valides Json, der Form</label>
+              <textarea id="txtImport">[
+  {
+    "name": "Example",
+    "category": "Meins",
+    "url": "https://www.mysite.org",
+    "login": "matthias.wiesner",
+    "password": "mySecretPassword",
+    "tags": ["foo","bar"]
+  }
+]</textarea>
+            </div>
+          </form>
+        </div>
+        <div class="actions">
+          <div class="ui approve button">OK</div>
+          <div class="ui cancel button">Abbruch</div>
+        </div>
+      </div>
+    </script>
+
+    <style>
+    html, body {
+      overflow-y: scroll !important;
+    }
+    .ui[class*="vertically divided"].grid > .row > .column {
+      margin-bottom: 0px;
+    }
+    .ui.form select {
+      height: 38px !important;
+    }
+
+    #inputSearch {
+      padding: 0.6em 1em;
+    }
+
+/* Mobile */
+
+@media only screen and (max-width: 767px) {
+  [class*="mobile hidden"],
+  [class*="tablet only"]:not(.mobile),
+  [class*="computer only"]:not(.mobile),
+  [class*="large monitor only"]:not(.mobile),
+  [class*="widescreen monitor only"]:not(.mobile),
+  [class*="or lower hidden"] {
+    display: none !important;
+  }
+}
+
+
+/* Tablet / iPad Portrait */
+
+@media only screen and (min-width: 768px) and (max-width: 991px) {
+  [class*="mobile only"]:not(.tablet),
+  [class*="tablet hidden"],
+  [class*="computer only"]:not(.tablet),
+  [class*="large monitor only"]:not(.tablet),
+  [class*="widescreen monitor only"]:not(.tablet),
+  [class*="or lower hidden"]:not(.mobile) {
+    display: none !important;
+  }
+}
+
+
+/* Computer / Desktop / iPad Landscape */
+
+@media only screen and (min-width: 992px) and (max-width: 1199px) {
+  [class*="mobile only"]:not(.computer),
+  [class*="tablet only"]:not(.computer),
+  [class*="computer hidden"],
+  [class*="large monitor only"]:not(.computer),
+  [class*="widescreen monitor only"]:not(.computer),
+  [class*="or lower hidden"]:not(.tablet):not(.mobile) {
+    display: none !important;
+  }
+}
+
+
+/* Large Monitor */
+
+@media only screen and (min-width: 1200px) and (max-width: 1919px) {
+  [class*="mobile only"]:not([class*="large monitor"]),
+  [class*="tablet only"]:not([class*="large monitor"]),
+  [class*="computer only"]:not([class*="large monitor"]),
+  [class*="large monitor hidden"],
+  [class*="widescreen monitor only"]:not([class*="large monitor"]),
+  [class*="or lower hidden"]:not(.computer):not(.tablet):not(.mobile) {
+    display: none !important;
+  }
+}
+
+
+/* Widescreen Monitor */
+
+@media only screen and (min-width: 1920px) {
+  [class*="mobile only"]:not([class*="widescreen monitor"]),
+  [class*="tablet only"]:not([class*="widescreen monitor"]),
+  [class*="computer only"]:not([class*="widescreen monitor"]),
+  [class*="large monitor only"]:not([class*="widescreen monitor"]),
+  [class*="widescreen monitor hidden"],
+  [class*="widescreen monitor or lower hidden"] {
+    display: none !important;
+  }
+}
+
+div [class*="left floated"] {
+  float: left;
+  margin-left: 0.25em;
+}
+
+div [class*="right floated"] {
+  float: right;
+   margin-right: 0.25em;
+}
+    </style>
+  </head>
+  <body>
+    <!-- for whatever reason, this css file must be loaded within the body (Transition error) -->
+    <link rel="stylesheet" type="text/css" class="ui" href="semantic/semantic.min.css">
+    <div class="ui vertically divided column grid container">
+      <div class="row">
+        <div class="column">
+          <h1>My Secrets</h1>
+          <button id="buttonNewSecret" class="ui primary button mobile hidden">Neu</button>
+          <button id="buttonExportSecrets" class="ui button mobile hidden">Export</button>
+          <button id="buttonImportSecrets" class="ui button mobile hidden">Import</button>
+          <div class="ui action input">
+            <input type="text" id="inputSearch" class="ui input" placeholder="Suche..">
+            <div class="ui icon button">
+              <i class="search link icon" id="buttonSearch"></i>
+            </div>
+          </div>
+          <button id="buttonLogout" class="ui icon button">
+            <span><i class="sign-out link icon"></i></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="row" id="rowSearchResults" style="display: none">
+        <div class="column">
+          <div class="ui cards" id="searchResults"></div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="column">
+          <div id="accordionSecrets" class="ui styled fluid accordion">
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
