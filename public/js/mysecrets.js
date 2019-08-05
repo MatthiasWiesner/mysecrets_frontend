@@ -198,7 +198,7 @@ function MySecrets(){
             // sort by name
             $.each(orderedSecrets, function(i, secrets){
                 secrets.sort(function (a, b) {
-                    return a.toLowerCase().localeCompare(b.toLowerCase());
+                    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
                 });
             });
 
