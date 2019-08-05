@@ -195,10 +195,11 @@ function MySecrets(){
             Object.keys(mysecrets).sort().forEach(function(key) {
                 orderedSecrets[key] = mysecrets[key];
             });
-
             // sort by name
             $.each(orderedSecrets, function(i, secrets){
-                secrets.sort(self.compareByName);
+                secrets.sort(function (a, b) {
+                    return a.toLowerCase().localeCompare(b.toLowerCase());
+                });
             });
 
             for (var category in orderedSecrets) {
@@ -339,14 +340,6 @@ function MySecrets(){
             });
             $('#rowSearchResults').show();
         });
-    };
-
-    this.compareByName = function(a, b){
-        if (a.name < b.name)
-            return -1;
-        if (a.name > b.name)
-            return 1;
-        return 0;
     };
 
     this.generatePassword = function(length, withSymbols){
