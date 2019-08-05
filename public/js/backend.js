@@ -39,7 +39,13 @@ function Backend(){
             beforeSend: function(xhr) {
                 xhr.setRequestHeader('Authorization', 'Basic ' + btoa($.session.get('username') + ':' + $.session.get('password')));
             },
-            success: success_callback
+            success: success_callback,
+            error: function(jqXHR){
+                if (jqXHR.status == 401) {
+                    alert(jqXHR.responseText);
+                    self.logout(self.app.init);
+                }
+            }
         };
         if (data != undefined){
             options.data = data;
